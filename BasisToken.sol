@@ -1,6 +1,6 @@
 pragma solidity ^0.4.18;
-// Created by Roman Oznobin - www.code-expert.pro
-// Owner is Alexey Malashkin - www.ruarmatura.ru
+// Created by Roman Oznobin
+// Owner is Alexey Malashkin
 // Smart contract for BasisToken of Ltd "KKM"
 
 
@@ -188,11 +188,46 @@ contract BasisToken is MintableToken {
 
     uint cats_set_time;
 
+    bool letToTakeD = false;
+
+/// Devidends calculation part
+
+    uint minimalDividends = 1000000000000;
+
+    uint internal undelivered_balance = 0;
+
+    bool internal stop_for_devidends_calculation = false;
+
+    uint public date_of_casting = 0;
+    uint public date_of_dividend_calculation = 1;
+    uint public totalDevidendsSended = 0;
+
+    struct Investor {
+        address holder;
+        uint tokens_cast;
+        uint holder_devidends;
+    }
+
+    address[] public tranzaction_Arr;
+    Investor[] internal Cast_Arr;
+    mapping (address => uint) check_dowble;
+    event DevidendSendToAll(address indexed pusher, uint256 undelivered, uint256 total_delivered);
+    event DevidendIsTaken(address indexed holder, uint256 devident_taken);
+    event DevidendDonat(address indexed donator, uint256 devident_given);
+    mapping(address => uint) devidents_cast;
+
+    address[] public clear_Arr;
+
 
 
     function BasisToken ( address _owner) public {
         owner = _owner;
         ico_creator = msg.sender;
+    }
+
+    modifier selfTakeD() {
+        require(letToTakeD);
+        _;
     }
 
     function mint( address _to, uint256 _amount) public canMint returns (bool) {
@@ -218,78 +253,58 @@ contract BasisToken is MintableToken {
     }
 
 
-
-/// Devidends calculation part
-
-    // uint internal devider;
-
-    uint internal undelivered_balance = 0;
-
-    bool internal stop_for_devidends_calculation = false;
-
-    uint public date_of_casting = 0;
-    uint public date_of_dividend_calculation = 1;
-    uint public totalDevidendsSended = 0;
-
-    struct Investor {
-        address holder;
-        uint tokens_cast;
-        uint holder_devidends;
-    }
-
-    address[] public tranzaction_Arr;
-    Investor[] internal Cast_Arr;
-    mapping (address => uint) check_dowble;
-    event DevidendSendToAll(address indexed pusher, uint256 undelivered, uint256 total_delivered);
-    event DevidendIsTaken(address indexed holder, uint256 devident_taken);
-    event DevidendDonat(address indexed donator, uint256 devident_given);
-    mapping(address => uint) devidents_cast;
-    //mapping (address => uint256 )  investor_Cast;
-
-
-
     function writeTranzaction (address _address) internal {
         tranzaction_Arr.push(_address);
     }
 
-    address[] public clear_Arr;
+
+
+/// Devidends part
 
     function makeDevidentsCast () public returns (bool) {
         require (!stop_for_devidends_calculation);
         require (msg.sender == owner
                 && date_of_casting  < date_of_dividend_calculation);
+
         address[] memory tmp_tranzaction_Arr = tranzaction_Arr;
-        address tmp_investor = tmp_tranzaction_Arr[0];
+        uint tranzaction_count = tmp_tranzaction_Arr.length;
+        require (tranzaction_count > 0);
+        stop_for_devidends_calculation = true;
+        //address tmp_investor = tmp_tranzaction_Arr[0];
         address[] storage tmp_clear_invArr = clear_Arr;
         //check_dowble[tmp_investor] = 0;
 
-        uint tranzaction_count = tmp_tranzaction_Arr.length;
 
+        //if (tranzaction_count > 0) {
         uint cheker = 0;
+        uint incheker = 0;
         Investor memory tmp_holder;
         for (uint i = 0; i < tranzaction_count; i++) {
-            tmp_investor = tmp_tranzaction_Arr[i];
+            address tmp_investor = tmp_tranzaction_Arr[i];
             cheker = check_dowble[tmp_investor];
-            if ( cheker < 1){
-//                investor_Cast(tmp_investor)= balances(tmp_investor);
-                tmp_holder.holder = tmp_investor;
-                tmp_holder.tokens_cast = balances[tmp_investor];
-                Cast_Arr.push(tmp_holder);
-                check_dowble[tmp_investor] = Cast_Arr.length;
-                tmp_clear_invArr.push(tmp_investor);
-            }
-            else {
-                cheker = cheker.sub(1);
-               Cast_Arr[cheker].tokens_cast = balances[tmp_investor];
-                //return false;
-                //check_dowble(tmp_investor)= i + 1;
-            }
+                if ( cheker < 1){
+    //                investor_Cast(tmp_investor)= balances(tmp_investor);
+                    tmp_holder.holder = tmp_investor;
+                    tmp_holder.tokens_cast = balances[tmp_investor];
+                    Cast_Arr.push(tmp_holder);
+                    check_dowble[tmp_investor] = Cast_Arr.length;
+                    //tmp_clear_invArr.push(tmp_investor);
+                } else {
+                    incheker = cheker.sub(1);
+                    Cast_Arr[incheker].tokens_cast = balances[tmp_investor];
+                    tmp_clear_invArr.push(tmp_investor);
+                    //return false;
+                    //check_dowble(tmp_investor)= i + 1;
+                }
+
         }
-        tranzaction_Arr = tmp_clear_invArr;
+        //}
+        //tranzaction_Arr = tmp_clear_invArr;
         date_of_casting = now;
-        stop_for_devidends_calculation = true;
         totalDevidendsSended = 0;
+        delete tranzaction_Arr;
         delete clear_Arr;
+        stop_for_devidends_calculation = false;
         return true;
     }
 
@@ -299,7 +314,7 @@ contract BasisToken is MintableToken {
         uint tmp_tokens = Cast_Arr[_place_holder].tokens_cast;
         //address tmp_investor = Cast_Arr[_place_holder].holder;
 
-        uint tmp_dolya = balance_for_devidends_calculation.mul(tmp_tokens).div(totalSupply);
+        uint tmp_dolya = balance_for_devidends_calculation.div(totalSupply).mul(tmp_tokens);
         return tmp_dolya;
     }
 
@@ -309,11 +324,12 @@ contract BasisToken is MintableToken {
         uint tmp_balance = this.balance;
         balance_for_devidends_calculation = tmp_balance.sub(undelivered_balance);
         uint tmp_count = countOfHolders();
+        //Investor[] memory tmp_Cast_Arr = Cast_Arr;
         for (uint i = 0; i< tmp_count; i++) {
             address tmp_investor = Cast_Arr[i].holder;
             uint tmp_devidends = devident_Culculation(i);
-            Cast_Arr[i].holder_devidends = tmp_devidends;
-            devidents_cast[tmp_investor] = tmp_devidends;
+            Cast_Arr[i].holder_devidends = Cast_Arr[i].holder_devidends.add(tmp_devidends);
+            devidents_cast[tmp_investor] = devidents_cast[tmp_investor].add(tmp_devidends);
         }
         date_of_dividend_calculation = now;
         stop_for_devidends_calculation = false;
@@ -334,10 +350,13 @@ contract BasisToken is MintableToken {
             holder_address = Cast_Arr[i].holder;
             devidends_cheker = devidents_cast[holder_address];
             if (devidends_cheker > 0) {
-            wei_to_send = Cast_Arr[i].holder_devidends;
-            holder_address.transfer(wei_to_send);
-            Cast_Arr[i].holder_devidends = 0;
-            totalDevidendsSended = totalDevidendsSended.add(wei_to_send);
+                if (devidends_cheker > minimalDividends){
+                wei_to_send = Cast_Arr[i].holder_devidends;
+                holder_address.transfer(wei_to_send);
+                Cast_Arr[i].holder_devidends = 0;
+                totalDevidendsSended = totalDevidendsSended.add(wei_to_send);
+                devidents_cast[holder_address] = 0;
+                }
             }
             else {
                 Cast_Arr[i].holder_devidends = 0;
@@ -347,7 +366,7 @@ contract BasisToken is MintableToken {
         DevidendSendToAll(msg.sender, undelivered_balance, totalDevidendsSended);
     }
 
-    function takeYouProfit () public payable {
+    function takeYouProfit () public selfTakeD payable {
         require (devidents_cast[msg.sender] > 0 );
         uint tmp_devidends = devidents_cast[msg.sender];
         address tmp_address = msg.sender;
@@ -360,12 +379,12 @@ contract BasisToken is MintableToken {
 
 
     function getTranzactionArr() view public returns (address[]) {
-        require (tranzaction_Arr.length > 0);
+        //require (tranzaction_Arr.length > 0);
         return tranzaction_Arr;
     }
 
     function countOfHolders() view public returns (uint) {
-        require (Cast_Arr.length > 0);
+        //require (Cast_Arr.length > 0);
         return Cast_Arr.length;
     }
 
@@ -377,5 +396,16 @@ contract BasisToken is MintableToken {
     function devidendsDonat () public payable {
         DevidendDonat(msg.sender,msg.value);
     }
+
+    function setLetToTakeD(bool _let) public onlyOwner {
+        require (msg.sender == owner);
+        letToTakeD = _let;
+    }
+
+    function setMinimalDevidends (uint _set) public onlyOwner {
+        require (msg.sender == owner);
+        minimalDividends = _set;
+    }
+    
 
 }

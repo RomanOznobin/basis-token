@@ -1,7 +1,7 @@
 pragma solidity ^0.4.18;
 
-// Created by Roman Oznobin - www.code-expert.pro
-// Owner is Alexey Malashkin - www.ruarmatura.ru
+// Created by Roman Oznobin
+// Owner is Alexey Malashkin
 // Smart contract for BasisToken of Ltd "KKM"
 
 
@@ -14,7 +14,7 @@ contract BssIco is RefundableCrowdsale {
   // Used to set wallet for RefundVault in RefundableCrowdsale constructor
   // To that address Ether will be sended if Ico will have sucsess done
   // Untill Ico is no finish and is no sucsess, all Ether are closed from anybody on RefundVault wallet
-  address public constant owner_wallet = 0x14723a09acff6d2a60dcdf7aa4aff308fddc160c;
+  //address public constant owner_wallet = 0x14723a09acff6d2a60dcdf7aa4aff308fddc160c;
   //
   address public bounty_wallet = 0xca35b7d915458ef540ade6068dfe2f44e8fa733c;
 
@@ -22,7 +22,7 @@ contract BssIco is RefundableCrowdsale {
 
   //address public bounty_reatricted_addr;
   //Base price for BSS ICO. Show how much Wei is in 1 BSS. During ICO price calculate from the $rate
-  uint internal constant rate = 33000000000000000;
+  uint internal constant rate = 3300000000000000;
 
     uint public token_iso_price;
 // Генерируется в Crowdsale constructor
@@ -30,7 +30,7 @@ contract BssIco is RefundableCrowdsale {
 
   // Time sructure of Basis ico
   // start_declaration of first round of Basis ico - Presale ( start_declaration of token creation and ico Presale )
-  uint public start_declaration = 1511395200;
+  uint public start_declaration = 1510790400;
   // The period for calculate the time structure of Basis ico, amount of the days
   uint public ico_period = 15;
   // First round finish - Presale finish
@@ -51,13 +51,13 @@ contract BssIco is RefundableCrowdsale {
   // Temporary restricted list of owners and balances
   mapping(address => uint) public ico_balances;
 
-  function BssIco() public RefundableCrowdsale(softcap, owner_wallet) Crowdsale(start_declaration, ico_finish, rate, msg.sender)
+  function BssIco() public RefundableCrowdsale(softcap, msg.sender) Crowdsale(start_declaration, ico_finish, rate, msg.sender)
     {
 
     owner = msg.sender;
     weiRaised = 0;
     bssTotalSuply = 0;
-    wallet = owner_wallet;
+    wallet = msg.sender;
 
     token_iso_price = rate.mul(80).div(100);
 
@@ -110,8 +110,28 @@ contract BssIco is RefundableCrowdsale {
         return token_iso_price;
     }
 
+   function buyTokens() public payable saleIsOn NoBreak {
 
-   function buyTokensInn(address beneficiary) public payable saleIsOn NoBreak {
+     //require(beneficiary != address(0));
+     require(validPurchase(msg.value));
+
+     uint256 weiAmount = msg.value;
+
+     // calculate token amount to be created
+     uint256 tokens = weiAmount.div(token_iso_price);
+    require ((bssTotalSuply + tokens) < hardcap);
+     // update state
+     weiRaised = weiRaised.add(weiAmount);
+
+     token.mint( msg.sender, tokens);
+     TokenPurchase(msg.sender, msg.sender, weiAmount, tokens);
+
+     forwardFunds();
+     bssTotalSuply += tokens;
+    }
+
+
+   function buyTokensFor(address beneficiary) public payable saleIsOn NoBreak {
 
      require(beneficiary != address(0));
      require(validPurchase(msg.value));
@@ -120,7 +140,7 @@ contract BssIco is RefundableCrowdsale {
 
      // calculate token amount to be created
      uint256 tokens = weiAmount.div(token_iso_price);
-
+    require ((bssTotalSuply + tokens) < hardcap);
      // update state
      weiRaised = weiRaised.add(weiAmount);
 
@@ -129,6 +149,22 @@ contract BssIco is RefundableCrowdsale {
 
      forwardFunds();
      bssTotalSuply += tokens;
+ }
+
+   function extraTokenMint(address beneficiary, uint _tokens) public payable saleIsOn onlyOwner {
+
+    require(beneficiary != address(0));
+    require ((bssTotalSuply + _tokens) < hardcap);
+
+    uint weiAmount = _tokens.mul(token_iso_price);
+     // update state
+    weiRaised = weiRaised.add(weiAmount);
+
+     token.mint( beneficiary, _tokens);
+     TokenPurchase(msg.sender, beneficiary, weiAmount, _tokens);
+
+     //forwardFunds();
+     bssTotalSuply += _tokens;
  }
 
   function goalReached() public constant returns (bool) {

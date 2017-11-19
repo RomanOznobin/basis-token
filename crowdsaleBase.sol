@@ -64,11 +64,11 @@ import './BasisToken.sol';
 
    // fallback function can be used to buy tokens
    function () external payable {
-     buyTokens(msg.sender);
+     buyTokensFor(msg.sender);
    }
 
    // low level token purchase function
-   function buyTokens(address beneficiary) public payable {
+   function buyTokensFor(address beneficiary) public payable {
 
      require(beneficiary != address(0));
      require(validPurchase(msg.value));
