@@ -375,9 +375,7 @@ contract BasisToken is MintableToken {
         DevidendIsTaken(msg.sender,tmp_devidends);
 
     }
-
-
-
+    
     function getTranzactionArr() view public returns (address[]) {
         //require (tranzaction_Arr.length > 0);
         return tranzaction_Arr;
@@ -406,6 +404,5 @@ contract BasisToken is MintableToken {
         require (msg.sender == owner);
         minimalDividends = _set;
     }
-    
 
 }

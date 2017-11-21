@@ -14,9 +14,9 @@ contract BssIco is RefundableCrowdsale {
   // Used to set wallet for RefundVault in RefundableCrowdsale constructor
   // To that address Ether will be sended if Ico will have sucsess done
   // Untill Ico is no finish and is no sucsess, all Ether are closed from anybody on RefundVault wallet
-  //address public constant owner_wallet = 0x14723a09acff6d2a60dcdf7aa4aff308fddc160c;
+  address public constant owner_wallet = 0x79d8af6eEA6Aeeaf7a3a92D348457a5C4f0eEe1B;
   //
-  address public bounty_wallet = 0xca35b7d915458ef540ade6068dfe2f44e8fa733c;
+  address public bounty_wallet = 0x79d8af6eEA6Aeeaf7a3a92D348457a5C4f0eEe1B;
 
   uint public constant bountyPercent = 4;
 
@@ -30,7 +30,7 @@ contract BssIco is RefundableCrowdsale {
 
   // Time sructure of Basis ico
   // start_declaration of first round of Basis ico - Presale ( start_declaration of token creation and ico Presale )
-  uint public start_declaration = 1510790400;
+  uint public start_declaration = 1511395200;
   // The period for calculate the time structure of Basis ico, amount of the days
   uint public ico_period = 15;
   // First round finish - Presale finish
@@ -51,13 +51,13 @@ contract BssIco is RefundableCrowdsale {
   // Temporary restricted list of owners and balances
   mapping(address => uint) public ico_balances;
 
-  function BssIco() public RefundableCrowdsale(softcap, msg.sender) Crowdsale(start_declaration, ico_finish, rate, msg.sender)
+  function BssIco() public RefundableCrowdsale(softcap, owner_wallet) Crowdsale(start_declaration, ico_finish, rate, owner_wallet)
     {
 
-    owner = msg.sender;
+    owner = owner_wallet;
     weiRaised = 0;
     bssTotalSuply = 0;
-    wallet = msg.sender;
+    wallet = owner_wallet;
 
     token_iso_price = rate.mul(80).div(100);
 
@@ -87,15 +87,18 @@ contract BssIco is RefundableCrowdsale {
     function setPrice () public isUnderHardCap saleIsOn {
           if  (now < presale_finish ){
                // Chek total supply BSS for price level changes
-              if( bssTotalSuply > 50000 && bssTotalSuply < 100000 ) {
+              if( bssTotalSuply > 50000 && bssTotalSuply <= 100000 ) {
                   token_iso_price = rate.mul(85).div(100);
               }
+                if( bssTotalSuply > 100000 && bssTotalSuply <= 150000 ) {
+                  token_iso_price = rate.mul(90).div(100);
+                  }
 
           }
           else {
-               if(bssTotalSuply < 200000) {
+               if(bssTotalSuply <= 200000) {
                    token_iso_price = rate.mul(90).div(100);
-               } else { if(bssTotalSuply < 400000) {
+               } else { if(bssTotalSuply <= 400000) {
                         token_iso_price = rate.mul(95).div(100);
                         }
                         else {
@@ -110,7 +113,7 @@ contract BssIco is RefundableCrowdsale {
         return token_iso_price;
     }
 
-   function buyTokens() public payable saleIsOn NoBreak {
+   function buyTokens() external payable saleIsOn NoBreak {
 
      //require(beneficiary != address(0));
      require(validPurchase(msg.value));
@@ -119,6 +122,9 @@ contract BssIco is RefundableCrowdsale {
 
      // calculate token amount to be created
      uint256 tokens = weiAmount.div(token_iso_price);
+     if  (now < presale_finish ){
+         require ((bssTotalSuply + tokens) <= softcap);
+     }
     require ((bssTotalSuply + tokens) < hardcap);
      // update state
      weiRaised = weiRaised.add(weiAmount);
@@ -130,6 +136,10 @@ contract BssIco is RefundableCrowdsale {
      bssTotalSuply += tokens;
     }
 
+   // fallback function can be used to buy tokens
+   function () external payable {
+     buyTokensFor(msg.sender);
+   }
 
    function buyTokensFor(address beneficiary) public payable saleIsOn NoBreak {
 
@@ -140,6 +150,9 @@ contract BssIco is RefundableCrowdsale {
 
      // calculate token amount to be created
      uint256 tokens = weiAmount.div(token_iso_price);
+      if  (now < presale_finish ){
+         require ((bssTotalSuply + tokens) <= softcap);
+     }
     require ((bssTotalSuply + tokens) < hardcap);
      // update state
      weiRaised = weiRaised.add(weiAmount);
@@ -151,7 +164,7 @@ contract BssIco is RefundableCrowdsale {
      bssTotalSuply += tokens;
  }
 
-   function extraTokenMint(address beneficiary, uint _tokens) public payable saleIsOn onlyOwner {
+   function extraTokenMint(address beneficiary, uint _tokens) external payable saleIsOn onlyOwner {
 
     require(beneficiary != address(0));
     require ((bssTotalSuply + _tokens) < hardcap);
@@ -165,15 +178,16 @@ contract BssIco is RefundableCrowdsale {
 
      //forwardFunds();
      bssTotalSuply += _tokens;
- }
+  }
 
   function goalReached() public constant returns (bool) {
     return bssTotalSuply >= softcap;
   }
 
-function bounty_mining () internal {
-    uint bounty_tokens = bssTotalSuply.div(100).mul(bountyPercent);
+  function bounty_mining () internal {
+    uint bounty_tokens = bssTotalSuply.mul(bountyPercent).div(100);
     token.mint(bounty_wallet, bounty_tokens);
+    bssTotalSuply += bounty_tokens;
     }
 
   // vault finalization task, called when owner calls finalize()

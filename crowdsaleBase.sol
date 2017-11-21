@@ -41,12 +41,12 @@ import './BasisToken.sol';
 
 
    function Crowdsale(uint256 _startTime, uint256 _endTime, uint256 _rate, address _wallet) internal {
-     require(_startTime <= now);
+     //require(_startTime <= now);
      require(_endTime >= _startTime);
      require(_rate > 0);
      require(_wallet != address(0));
 
-     token = createTokenContract();
+     token = createTokenContract(_wallet);
      startTime = _startTime;
      endTime = _endTime;
      rate = _rate;
@@ -57,15 +57,12 @@ import './BasisToken.sol';
 
    // creates the token to be sold.
    // override this method to have crowdsale of a specific mintable token.
-   function createTokenContract() internal returns (BasisToken) {
-     return new BasisToken(msg.sender);
+   function createTokenContract(address _wallet) internal returns (BasisToken) {
+     return new BasisToken(_wallet);
    }
 
 
-   // fallback function can be used to buy tokens
-   function () external payable {
-     buyTokensFor(msg.sender);
-   }
+
 
    // low level token purchase function
    function buyTokensFor(address beneficiary) public payable {
